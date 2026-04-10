@@ -17,13 +17,14 @@ def load_dataset(dataset_path):
     print(f"Dataset loaded: {images.shape[0]} samples, image shape: {images.shape[1:]}, depth shape: {depths.shape[1:]}")
     return torch.from_numpy(images).float(), torch.from_numpy(depths).float()
 
-def print_model_sample(model, input_tensors, device):
+def print_model_sample(model, dataset, device):
     model.eval()
     text_features = torch.zeros((1, 1024), dtype=torch.float32).to(device)
     with torch.no_grad():
         output_dir = "./outputs"
-        i = random.randint(0, input_tensors[0].shape[0] - 1)
-        image = input_tensors[0][i].unsqueeze(0).to(device)
+        i = random.randint(0, len(dataset) - 1)
+        image, depth = dataset[i]
+        image = image.unsqueeze(0).to(device)
         image = image / 255.0
         output = model(image, text_feature_list= text_features, sample_from_gaussian= False)
         predicted_depth = output 
@@ -45,3 +46,15 @@ def print_model_sample(model, input_tensors, device):
         plt.close()
 
         print(f"Saved depth map to {save_path}")
+
+class NYU_datastet(torch.utils.data.Dataset):
+    def __init__(self, dataset_path):
+        self.images, self.depths = load_dataset(dataset_path)
+
+    def __len__(self):
+        return self.images.shape[0]
+
+    def __getitem__(self, idx):
+        image = self.images[idx] / 255.0
+        depth = self.depths[idx]
+        return image, depth

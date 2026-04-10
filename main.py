@@ -1,10 +1,15 @@
+import argparse
 import os
 from networks.wordepth import WorDepth
 import torch
 from collections import OrderedDict
-from utils import load_dataset, print_model_sample
+from utils import load_dataset, print_model_sample, NYU_datastet
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-eval', '--eval', action='store_true', default=False, help= "Choose to evaluate the model")
+    args = parser.parse_args()
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
@@ -35,8 +40,64 @@ def main():
 
     print("Model loaded")
 
-    images , depths = load_dataset("nyu_depth_v2_labeled.mat")
-    print_model_sample(worDepth_model, (images, depths), device)
-    
+    dataset = NYU_datastet("nyu_depth_v2_labeled.mat")
+
+    if args.eval:
+        #Print a sample 
+        print_model_sample(worDepth_model, dataset, device)
+
+        #Evaluation metrics [MSE, absrel, delta]
+        eval_loader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=False)
+        worDepth_model.eval()
+        total_mse = 0.0
+        total_absrel = 0.0
+        total_delta1 = 0.0
+        total_delta2 = 0.0
+        total_delta3 = 0.0
+        total_valid_pixels = 0
+
+        with torch.no_grad():
+            for batch_images, batch_depths in eval_loader:
+                inputs = batch_images.to(device)
+                gt = batch_depths.to(device)
+                
+                preds = worDepth_model(inputs, text_feature_list= torch.zeros((inputs.size(0), 1024), dtype=torch.float32).to(device), sample_from_gaussian= False)
+                preds = preds.squeeze(1)  
+                
+                valid_mask = gt > 0
+                pred_valid = preds[valid_mask]
+                gt_valid = gt[valid_mask]
+
+                n_valid = gt_valid.numel()
+                if n_valid == 0:
+                    continue
+                
+                total_valid_pixels += n_valid
+
+                # Accumulate sums (NOT means) for the batch
+                total_mse += torch.sum((gt_valid - pred_valid) ** 2).item()
+                total_absrel += torch.sum(torch.abs(gt_valid - pred_valid) / gt_valid).item()
+
+                max_ratio = torch.max(gt_valid / pred_valid, pred_valid / gt_valid)
+                total_delta1 += torch.sum((max_ratio < 1.25).float()).item()
+                total_delta2 += torch.sum((max_ratio < 1.25**2).float()).item()
+                total_delta3 += torch.sum((max_ratio < 1.25**3).float()).item()
+
+        # 3. Calculate final metrics across the entire dataset
+        if total_valid_pixels > 0:
+            final_mse = total_mse / total_valid_pixels
+            final_absrel = total_absrel / total_valid_pixels
+            final_delta1 = total_delta1 / total_valid_pixels
+            final_delta2 = total_delta2 / total_valid_pixels
+            final_delta3 = total_delta3 / total_valid_pixels
+
+            print(f"\n--- Final Results ({len(dataset)} images) ---")
+            print(f"MSE: {final_mse:.4f}")
+            print(f"AbsRel: {final_absrel:.4f}")
+            print(f"Delta < 1.25: {final_delta1:.4f}")
+            print(f"Delta < 1.25^2: {final_delta2:.4f}")
+            print(f"Delta < 1.25^3: {final_delta3:.4f}")
+        else:
+            print("No valid depth pixels found during evaluation.")
 
 if __name__ == "__main__": main()
