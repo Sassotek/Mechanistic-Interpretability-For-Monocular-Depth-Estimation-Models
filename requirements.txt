@@ -2,3 +2,5 @@ torch
 torchvision
 tqdm 
 timm
+h5py
+matplotlib

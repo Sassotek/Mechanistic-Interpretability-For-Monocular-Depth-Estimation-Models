@@ -1,3 +1,4 @@
 **/.venv
 **/models
 **/networks/__pycache__
+nyu_depth_v2_labeled.mat
