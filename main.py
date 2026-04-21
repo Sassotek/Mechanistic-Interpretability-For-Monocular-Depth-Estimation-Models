@@ -86,6 +86,7 @@ def main():
         # 3. Calculate final metrics across the entire dataset
         if total_valid_pixels > 0:
             final_mse = total_mse / total_valid_pixels
+            final_rmse = final_mse ** 0.5
             final_absrel = total_absrel / total_valid_pixels
             final_delta1 = total_delta1 / total_valid_pixels
             final_delta2 = total_delta2 / total_valid_pixels
@@ -93,10 +94,13 @@ def main():
 
             print(f"\n--- Final Results ({len(dataset)} images) ---")
             print(f"MSE: {final_mse:.4f}")
+            print(f"RMSE: {final_rmse:.4f}")
             print(f"AbsRel: {final_absrel:.4f}")
             print(f"Delta < 1.25: {final_delta1:.4f}")
             print(f"Delta < 1.25^2: {final_delta2:.4f}")
             print(f"Delta < 1.25^3: {final_delta3:.4f}")
+            print(f"Total valid pixels evaluated: {total_valid_pixels}")
+            
         else:
             print("No valid depth pixels found during evaluation.")
 
