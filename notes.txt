@@ -1,5 +1,6 @@
 --- Final Results (1449 images) ---
 MSE: 0.5847
+RMSE: 0.7646567857542362
 AbsRel: 0.1237
 Delta < 1.25: 0.8488
 Delta < 1.25^2: 0.9194
